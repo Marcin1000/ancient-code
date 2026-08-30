@@ -62,4 +62,17 @@ assert.equal(ownershipRisk(thin).level, 'watch');
 const shared = { authors: 8, busFactor: 4, topAuthorShare: 0.3, topAuthorLastSeen: '2026-08-01' };
 assert.equal(ownershipRisk(shared).level, 'ok');
 
-console.log('ownership: 18 assertions passed');
+// Git for Windows can hand back CRLF. Parsed naively, the carriage return ends
+// up glued to the date, so "last seen" reads as a broken string and the file
+// name never matches its module.
+const crlf = summarize(log([
+  ['Ada', '2026-01-05', ['src/core/pay.js']],
+  ['Grace', '2026-01-06', ['src/core/pay.js']],
+]).replace(/\n/g, '\r\n'));
+const core = crlf.modules.find((m) => m.module === 'src/core');
+assert.ok(core, 'CRLF output still resolves file names to modules');
+assert.equal(core.changes, 2);
+assert.equal(core.lastTouched, '2026-01-06', 'dates carry no carriage return');
+assert.equal(core.topAuthorLastSeen, '2026-01-05');
+
+console.log('ownership: 22 assertions passed');

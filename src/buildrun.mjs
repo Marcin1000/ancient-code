@@ -108,7 +108,7 @@ async function exists(p) {
 }
 
 function short(text, fallback = 'failed') {
-  const lines = String(text ?? '').trim().split('\n').filter(Boolean);
+  const lines = String(text ?? '').split(/\r?\n/).map((l) => l.trim()).filter(Boolean);
   return lines.length ? lines[lines.length - 1].slice(0, 160) : fallback;
 }
 

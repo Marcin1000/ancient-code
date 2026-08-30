@@ -50,7 +50,10 @@ export function summarize(stdout, { sinceYears = 3, maxModules = 40 } = {}) {
   let author = null;
   let date = null;
   let seenInCommit = new Set();
-  for (const line of stdout.split('\n')) {
+  // Git for Windows can hand back CRLF. The date sits at the end of the record
+  // line, so a stray carriage return would ride along inside every "last seen"
+  // date and quietly poison the comparisons that pick the busiest author.
+  for (const line of stdout.split(/\r?\n/)) {
     if (line.startsWith(REC)) {
       const [raw, d] = line.slice(1).split(FLD);
       author = normalizeAuthor(raw);
@@ -205,5 +208,5 @@ function humanReason(err) {
   if (/ENOENT/.test(text) && /spawn git/.test(text)) {
     return 'git is not on the PATH, and this reads history with git';
   }
-  return text.split('\n')[0];
+  return text.split(/\r?\n/)[0].trim();
 }
