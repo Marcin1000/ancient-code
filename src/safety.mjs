@@ -1,6 +1,6 @@
 import { readdir, readFile, stat } from 'node:fs/promises';
 import { join, relative } from 'node:path';
-import { moduleOf, isNoise } from './ownership.mjs';
+import { moduleOf, isNoise, toPosix } from './ownership.mjs';
 
 /**
  * Is there a safety net under changes to this system?
@@ -36,13 +36,19 @@ const SOURCE_EXT = new Set([
   '.java', '.kt', '.swift', '.php', '.cs', '.c', '.cc', '.cpp', '.m',
 ]);
 
+/** A test file, whichever way the operating system spells a path. */
+export function isTestFile(file) {
+  const path = toPosix(file);
+  return TEST_FILE.test(path) || TEST_NAME.test(path.split('/').pop());
+}
+
 export async function safetyNet(repo) {
   const ci = await findCi(repo);
   const files = await listFiles(repo);
 
   const perModule = new Map(); // module -> { source, tests }
   for (const f of files) {
-    const isTest = TEST_FILE.test(f) || TEST_NAME.test(f.split('/').pop());
+    const isTest = isTestFile(f);
     const ext = f.slice(f.lastIndexOf('.'));
     if (!SOURCE_EXT.has(ext)) continue;
     const mod = moduleOf(f);
@@ -163,10 +169,10 @@ async function listFiles(repo, max = 60000) {
       const full = join(dir, e.name);
       const rel = relative(repo, full);
       if (e.isDirectory()) {
-        if (e.name === '.git' || isNoise(`${rel}/x`)) continue;
+        if (e.name === '.git' || isNoise(`${toPosix(rel)}/x`)) continue;
         stack.push(full);
       } else if (e.isFile()) {
-        if (!isNoise(rel)) out.push(rel);
+        if (!isNoise(rel)) out.push(toPosix(rel));
       }
     }
   }

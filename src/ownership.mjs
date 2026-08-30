@@ -131,8 +131,18 @@ export function normalizeAuthor(name) {
 }
 
 /** Group by the directory a person would name in conversation. */
+/**
+ * Paths reach this module from two places: git, which always writes them with
+ * forward slashes, and the local filesystem, which on Windows writes them with
+ * backslashes. Without this line every file on Windows landed in one module
+ * called "(root)", so the whole safety measurement quietly said nothing.
+ */
+export function toPosix(file) {
+  return String(file).replace(/\\/g, '/');
+}
+
 export function moduleOf(file) {
-  const parts = file.split('/');
+  const parts = toPosix(file).split('/');
   if (parts.length === 1) return '(root)';
   const containers = new Set(['src', 'lib', 'packages', 'apps', 'services', 'modules', 'app']);
   if (containers.has(parts[0]) && parts.length > 2) return `${parts[0]}/${parts[1]}`;
@@ -141,8 +151,9 @@ export function moduleOf(file) {
 
 /** Generated and vendored files say nothing about who understands the system. */
 export function isNoise(file) {
-  return /(^|\/)(node_modules|vendor|dist|build|third_party|\.yarn)\//.test(file)
-    || /(package-lock\.json|yarn\.lock|pnpm-lock\.yaml|\.min\.(js|css)|\.svg|\.png|\.jpg|\.snap)$/.test(file);
+  const path = toPosix(file);
+  return /(^|\/)(node_modules|vendor|dist|build|third_party|\.yarn)\//.test(path)
+    || /(package-lock\.json|yarn\.lock|pnpm-lock\.yaml|\.min\.(js|css)|\.svg|\.png|\.jpg|\.snap)$/.test(path);
 }
 
 /**

@@ -81,3 +81,24 @@ for (const dir of [bare, untested, ciNoTests, central, gap, docsOnly]) {
   await rm(dir, { recursive: true, force: true });
 }
 console.log('safety: 12 assertions passed');
+
+// Windows spells the same path with backslashes, and every check in this file
+// matches on forward slashes. Without normalising, every file on Windows fell
+// into one module called "(root)", the uncovered-module check found nothing,
+// and the whole safety measurement quietly said "ok" on a repository with a
+// real gap. It was a failing test on somebody's machine that caught it.
+{
+  const { isTestFile } = await import('../src/safety.mjs');
+  const { moduleOf, isNoise, toPosix } = await import('../src/ownership.mjs');
+
+  assert.equal(toPosix('payments\\a.js'), 'payments/a.js');
+  assert.equal(moduleOf('payments\\a.js'), 'payments');
+  assert.equal(moduleOf('src\\core\\a.ts'), 'src/core');
+  assert.equal(isTestFile('orders\\x.test.js'), true);
+  assert.equal(isTestFile('tests\\lib\\a.js'), true);
+  assert.equal(isTestFile('payments\\a.js'), false);
+  assert.equal(isNoise('node_modules\\x\\y.js'), true);
+  assert.equal(isNoise('payments\\a.js'), false);
+
+  console.log('safety: 8 more assertions passed (sciezki Windows)');
+}
