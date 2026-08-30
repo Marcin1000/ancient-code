@@ -1,0 +1,43 @@
+{
+  "name": "ancient-code",
+  "version": "0.1.0",
+  "description": "What it would cost to hand a codebase to someone else: six questions, five of them measured.",
+  "type": "module",
+  "bin": {
+    "ancient-code": "bin/ancient-code.mjs"
+  },
+  "engines": {
+    "node": ">=20"
+  },
+  "scripts": {
+    "test": "node test/ownership.test.mjs && node test/safety.test.mjs && node test/buildability.test.mjs && node test/buildrun.test.mjs && node test/docsreality.test.mjs"
+  },
+  "dependencies": {
+    "ancient-fences": "^0.3.0"
+  },
+  "license": "MIT",
+  "author": "Marcin Przybylski",
+  "homepage": "https://ancientcode.net",
+  "bugs": {
+    "url": "https://github.com/Marcin1000/ancient-code/issues"
+  },
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/Marcin1000/ancient-code.git"
+  },
+  "keywords": [
+    "transferability",
+    "code-audit",
+    "bus-factor",
+    "handover",
+    "due-diligence",
+    "maintenance",
+    "technical-debt"
+  ],
+  "files": [
+    "bin",
+    "src",
+    "README.md",
+    "LICENSE"
+  ]
+}
