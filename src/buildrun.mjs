@@ -78,20 +78,30 @@ export async function runBuild(repo, { timeoutMs = 15 * 60 * 1000, keep = false 
  * machine with a spawn error, which the report then presented as "this project
  * does not build": a false accusation about somebody's code, caused by ours.
  *
- * Only the interpreter changes. Arguments stay a fixed list, and the directory
- * travels as cwd rather than as text in a command line, so nothing from the
- * repository reaches a shell.
+ * A shell concatenates arguments instead of escaping them, so nothing that is
+ * not a plain word is allowed through. Every argument here is written in this
+ * file except the build script name, which comes from the repository being
+ * measured and is therefore checked rather than trusted. The directory travels
+ * as cwd, never as text in a command line.
  */
-export function spawnFor(cmd, platform = process.platform) {
+const SAFE_ARG = /^[A-Za-z0-9._:@/-]+$/;
+
+export function spawnFor(cmd, args = [], platform = process.platform) {
   const windows = platform === 'win32';
-  const shellNeeded = windows && !/\.(exe|com)$/i.test(cmd) && cmd !== 'git';
-  return { command: shellNeeded ? `${cmd}.cmd` : cmd, shell: shellNeeded };
+  const needsShell = windows && !/\.(exe|com)$/i.test(cmd) && cmd !== 'git';
+  if (!needsShell) return { command: cmd, args, shell: false };
+  const unsafe = args.find((a) => !SAFE_ARG.test(a));
+  if (unsafe) return { command: null, args: [], shell: false, refused: unsafe };
+  // Node warns when arguments are passed alongside shell: true, so the command
+  // line is assembled here, from words already checked above.
+  return { command: [`${cmd}.cmd`, ...args].join(' '), args: [], shell: true };
 }
 
 async function tryRun(cmd, args, cwd, timeout) {
-  const { command, shell } = spawnFor(cmd);
+  const { command, args: spawnArgs, shell, refused } = spawnFor(cmd, args);
+  if (refused) return { ok: false, note: `refused to run ${cmd} with an unusual argument: ${refused.slice(0, 60)}` };
   try {
-    const { stdout, stderr } = await run(command, args, { cwd, timeout, shell, maxBuffer: 64 * 1024 * 1024 });
+    const { stdout, stderr } = await run(command, spawnArgs, { cwd, timeout, shell, maxBuffer: 64 * 1024 * 1024 });
     return { ok: true, note: short(stderr || stdout, 'completed') };
   } catch (err) {
     return { ok: false, note: short(err.stderr || err.message) };

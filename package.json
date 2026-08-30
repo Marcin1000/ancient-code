@@ -1,6 +1,6 @@
 {
   "name": "ancient-code",
-  "version": "0.1.0",
+  "version": "0.1.1",
   "description": "What it would cost to hand a codebase to someone else: six questions, five of them measured.",
   "type": "module",
   "bin": {
