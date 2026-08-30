@@ -1,5 +1,6 @@
 import { execFile } from 'node:child_process';
 import { promisify } from 'node:util';
+import { stat } from 'node:fs/promises';
 
 const run = promisify(execFile);
 
@@ -17,8 +18,20 @@ const FLD = '\u0002';
  * It is how many of them have ever touched the module that runs payments.
  */
 export async function ownership(repo, { sinceYears = 3, maxModules = 40, maxCommits = 20000 } = {}) {
+  // Node reports a missing working directory and a missing git binary with the
+  // same ENOENT, so without this check pointing at a path that does not exist
+  // was reported as "git is not on the PATH". That is a false statement about
+  // the reader's machine, and it sends them looking in the wrong place.
+  const here = await directory(repo);
+  if (here) return { error: here, modules: [] };
+
+  const years = Number(sinceYears);
+  if (!Number.isFinite(years) || years <= 0) {
+    return { error: `history window must be a positive number of years, not "${sinceYears}"`, modules: [] };
+  }
+
   const since = new Date();
-  since.setFullYear(since.getFullYear() - sinceYears);
+  since.setFullYear(since.getFullYear() - years);
   const sinceArg = since.toISOString().slice(0, 10);
 
   let stdout;
@@ -37,7 +50,7 @@ export async function ownership(repo, { sinceYears = 3, maxModules = 40, maxComm
     return { error: humanReason(err), modules: [] };
   }
 
-  return summarize(stdout, { sinceYears, maxModules });
+  return summarize(stdout, { sinceYears: years, maxModules });
 }
 
 /** Split out so the parsing is testable without a repository. */
@@ -197,6 +210,19 @@ export function monthsSince(isoDate) {
  * The first thing a new user does is run this in a directory. When that fails,
  * the reason has to be a sentence, not a dump of the command we tried.
  */
+/** Empty when the path is a usable directory, otherwise the reason it is not. */
+async function directory(repo) {
+  try {
+    const info = await stat(repo);
+    if (!info.isDirectory()) return `${repo} is a file, and this reads a repository directory`;
+    return null;
+  } catch (err) {
+    if (err.code === 'ENOENT') return `there is nothing at ${repo}`;
+    if (err.code === 'EACCES') return `no permission to read ${repo}`;
+    return `cannot open ${repo}: ${err.code ?? err.message}`;
+  }
+}
+
 function humanReason(err) {
   const text = `${err.message}`;
   if (/does not have any commits yet|bad default revision/.test(text)) {

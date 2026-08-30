@@ -18,8 +18,7 @@ const value = (f) => {
 };
 const positional = args.filter((a) => !a.startsWith('--'));
 
-if (has('--help') || positional[0] === 'help') {
-  console.log(`ancient-code: what it would cost to hand this system to someone else.
+const usage = `ancient-code: what it would cost to hand this system to someone else.
 
   ancient-code [path] [options]
 
@@ -35,12 +34,30 @@ if (has('--help') || positional[0] === 'help') {
 
 Five of the six questions are measured here. Who holds the keys still needs a
 person, and the report says so rather than quietly leaving it out.
-`);
+`;
+
+if (has('--help') || positional[0] === 'help') {
+  console.log(usage);
   process.exit(0);
 }
 
+// A mistyped option used to be ignored in silence, so `--no-fenses` produced a
+// full report that had quietly scanned everything. Being wrong loudly is the
+// only acceptable behaviour here.
+const KNOWN = new Set(['--since', '--fences', '--no-fences', '--run-build', '--report', '--json', '--help']);
+const unknown = flags.filter((f) => !KNOWN.has(f.split('=')[0]));
+if (unknown.length > 0) {
+  console.error(`ancient-code: unknown option ${unknown.join(', ')}`);
+  console.error(usage);
+  process.exit(2);
+}
+if (positional.length > 1) {
+  console.error(`ancient-code: one path at a time, got ${positional.length}: ${positional.join(', ')}`);
+  process.exit(2);
+}
+
 const root = resolve(positional[0] ?? process.cwd());
-const sinceYears = Number(value('--since') ?? 3);
+const sinceYears = value('--since') ?? 3;
 
 const own = await ownership(root, { sinceYears });
 if (own.error) {
@@ -65,10 +82,14 @@ if (has('--run-build')) {
 let fences = null;
 const fencesFile = value('--fences');
 if (fencesFile) {
+  // Asking for a specific file and getting a report that silently says "not
+  // measured" is the same failure as the mistyped option: the run looks like it
+  // worked. If the file was named, it has to be there.
   try {
     fences = JSON.parse(await readFile(resolve(fencesFile), 'utf8'));
   } catch (err) {
-    console.error(`could not read ${fencesFile}: ${err.message}`);
+    console.error(`ancient-code: could not read --fences=${fencesFile}: ${err.message}`);
+    process.exit(2);
   }
 } else if (!has('--no-fences')) {
   fences = await scanFences(root);
@@ -79,8 +100,18 @@ const name = basename(root);
 
 const reportFlag = flags.find((f) => f === '--report' || f.startsWith('--report='));
 if (reportFlag) {
-  const out = resolve(value('--report') ?? 'ancient-code.html');
-  await writeFile(out, renderHtml(name, a, own), 'utf8');
+  const named = value('--report');
+  if (named === '') {
+    console.error('ancient-code: --report= needs a file name, or use --report on its own');
+    process.exit(2);
+  }
+  const out = resolve(named ?? 'ancient-code.html');
+  try {
+    await writeFile(out, renderHtml(name, a, own), 'utf8');
+  } catch (err) {
+    console.error(`ancient-code: could not write ${out}: ${err.message}`);
+    process.exit(2);
+  }
   console.error(`report written to ${out}`);
 }
 

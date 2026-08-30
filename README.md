@@ -1,4 +1,9 @@
-<h1>Ancient Code</h1>
+<picture>
+  <source media="(prefers-color-scheme: dark)" srcset="https://raw.githubusercontent.com/Marcin1000/ancient-code/main/assets/readme-banner-code.png">
+  <img src="https://raw.githubusercontent.com/Marcin1000/ancient-code/main/assets/readme-banner-code-light.png" alt="Ancient Code" width="100%">
+</picture>
+
+# Ancient Code
 
 **What would it cost to hand this codebase to someone else?**
 
@@ -9,23 +14,36 @@ No account, no upload, no configuration. Your code never leaves your machine.
 npx ancient-code .
 ```
 
+Run against a full clone of webpack, this is the whole of it:
+
 ```
-  ANCIENT CODE / transferability
-  orders-platform
+  ANCIENT CODE / transferability, partial run
+  webpack
   ========================================================================
   [ RISK ]  How many people understand each part?
-            3 of 11 modules depend on one person
+            38 of 40 modules depend on one person
   [  ok  ]  Is there a safety net for changes?
-            tests run in CI and live next to the code they cover
+            tests run in CI and live in a central test directory; tying them
+            to individual modules would need a coverage run
   [ watch]  How much scaffolding did nobody remove?
-            41 in source, 12 in tests (kept, not work), 9 untouched for 3+ years
-  [ RISK ]  Does it build from scratch?
-            3 things a new team cannot find out from the repository alone
-  [ watch]  Is the documentation real?
-            2 instructions point at something that is not there any more
+            51 in source, 39 in tests (kept, not work), 23 untouched for 3+
+            years, 30 external issues to check
+  [ watch]  Does it build from scratch?
+            1 gap that makes the build less reproducible (submodules)
+            missing: 4 public submodules must be checked out as well, which
+            is a step people forget (.gitmodules)
+  [ RISK ]  Is the documentation real?
+            one instruction in the documentation points at something that is
+            not there any more
+            path is gone: the docs point at webpack/lib/index.js, which is
+            not here (CONTRIBUTING.md)
   [  --  ]  Who holds the keys?
             not measured in this run
 ```
+
+Every line above is reproducible: clone webpack in full and run the command.
+The same output for webpack, puppeteer, eslint and express is published at
+[ancientcode.net/reports](https://ancientcode.net/reports/).
 
 ## Why this exists
 

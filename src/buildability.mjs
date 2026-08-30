@@ -160,7 +160,12 @@ export async function buildability(repo) {
   if (manifest) {
     const deps = { ...manifest.dependencies, ...manifest.devDependencies };
     const privateDeps = Object.entries(deps)
-      .filter(([, spec]) => /^(file:|link:|git\+ssh:|ssh:\/\/)/.test(String(spec)));
+      .filter(([, spec]) => /^(file:|link:|git\+ssh:|ssh:\/\/)/.test(String(spec)))
+      // A file: path that stays inside the checkout is a workspace package, not
+      // a dependency somebody else has to be given. eslint depends on itself
+      // with file:. to dogfood its own rules, and calling that a blocker for a
+      // new team is simply wrong: cloning the repository brings it along.
+      .filter(([, spec]) => !insideRepo(String(spec)));
     if (privateDeps.length > 0) {
       findings.push({
         kind: 'local or private dependency',
@@ -258,6 +263,22 @@ async function usesEnv(repo, read) {
     if (text && /\$\{?[A-Z][A-Z0-9_]{2,}\}?|process\.env\.[A-Z]/.test(text)) return true;
   }
   return false;
+}
+
+/** A file: or link: target that resolves within the repository it is declared in. */
+export function insideRepo(spec) {
+  const m = /^(?:file:|link:)(.*)$/.exec(spec);
+  if (!m) return false;
+  const path = m[1].replace(/^\.\//, '');
+  if (path === '' || path === '.') return true;
+  if (path.startsWith('/') || path.startsWith('~')) return false;
+  let depth = 0;
+  for (const part of path.split('/')) {
+    if (part === '..') depth -= 1;
+    else if (part && part !== '.') depth += 1;
+    if (depth < 0) return false;
+  }
+  return true;
 }
 
 function verdictFor(findings) {

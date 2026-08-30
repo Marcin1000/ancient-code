@@ -2,7 +2,7 @@ import assert from 'node:assert/strict';
 import { mkdtemp, mkdir, writeFile, rm } from 'node:fs/promises';
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
-import { buildability } from '../src/buildability.mjs';
+import { buildability, insideRepo } from '../src/buildability.mjs';
 
 async function project(files) {
   const dir = await mkdtemp(join(tmpdir(), 'ancient-build-audit-'));
@@ -104,7 +104,23 @@ b = await make({
 assert.equal(b.findings.some((f) => f.kind === 'undocumented'), false);
 
 for (const d of dirs) await rm(d, { recursive: true, force: true });
-console.log('buildability: 14 assertions passed');
+
+// A file: dependency that stays inside the checkout is a workspace package, not
+// something a new team has to be handed. eslint depends on itself with file:.
+// to dogfood its own rules, and the report called that a blocker for taking the
+// project over. Cloning the repository brings it along.
+assert.equal(insideRepo('file:.'), true);
+assert.equal(insideRepo('file:packages/config'), true);
+assert.equal(insideRepo('file:./packages/config'), true);
+assert.equal(insideRepo('file:packages/../lib'), true);
+assert.equal(insideRepo('file:../private-lib'), false, 'a sibling directory is not in the checkout');
+assert.equal(insideRepo('file:packages/../../escape'), false);
+assert.equal(insideRepo('file:/opt/lib'), false);
+assert.equal(insideRepo('link:../shared'), false);
+assert.equal(insideRepo('git+ssh://git@internal/x.git'), false);
+assert.equal(insideRepo('^1.2.3'), false);
+
+console.log('buildability: 24 assertions passed');
 
 // A readme is a readme whatever the shift key was doing. express keeps its in
 // `Readme.md`, and the first version reported the project as undocumented and

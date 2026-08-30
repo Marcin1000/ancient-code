@@ -4,7 +4,7 @@ import { promisify } from 'node:util';
 import { mkdtemp, mkdir, writeFile, rm } from 'node:fs/promises';
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
-import { docsReality, referencedPaths } from '../src/docsreality.mjs';
+import { docsReality, pathCandidates, isPattern, describedAsGenerated, referencedPaths } from '../src/docsreality.mjs';
 
 const run = promisify(execFile);
 const dirs = [];
@@ -112,4 +112,39 @@ const paths = referencedPaths('see `src/a.js` and [the guide](docs/guide.md) and
 assert.deepEqual(paths.sort(), ['docs/guide.md', 'src/a.js']);
 
 for (const dir of dirs) await rm(dir, { recursive: true, force: true });
-console.log('docsreality: 14 assertions passed');
+
+// Four ways this check accused real projects of something untrue. Each one was
+// found by running the tool against a full clone and then reading the file it
+// complained about.
+
+// 1. Documentation writes a path from outside the checkout. webpack's
+// CONTRIBUTING says `webpack/lib/index.js` for a file that sits at lib/index.js,
+// and the report called that a broken instruction, in red, on the front page.
+assert.deepEqual(pathCandidates('webpack/lib/index.js', 'webpack'), ['webpack/lib/index.js', 'lib/index.js']);
+assert.deepEqual(pathCandidates('lib/index.js', 'webpack'), ['lib/index.js']);
+assert.deepEqual(pathCandidates('other/lib/index.js', 'webpack'), ['other/lib/index.js']);
+assert.deepEqual(pathCandidates('pkg/a.js', '@scope/pkg'), ['pkg/a.js', 'a.js']);
+
+// 2. A backticked path used as the label of a link is a caption, not an
+// instruction. puppeteer labels a github.com URL with `third_party/README.md`.
+assert.deepEqual(
+  referencedPaths('see [`third_party/README.md`](https://github.com/x/y/blob/main/packages/core/third_party/README.md)'),
+  [], 'a link label is not a reference into this repository');
+assert.deepEqual(referencedPaths('see `src/thing.js` for details'), ['src/thing.js']);
+assert.deepEqual(referencedPaths('see [the guide](docs/guide.md)'), ['docs/guide.md']);
+
+// 3. Documentation names families of scripts and leaves placeholders in them.
+assert.equal(isPattern('test:chrome:'), true);
+assert.equal(isPattern('test:chrome'), false);
+assert.equal(isPattern('test:*'), true);
+assert.equal(isPattern('build.'), true);
+assert.equal(isPattern('test', 'npm run test<suite> now', 'npm run test'.length), true);
+assert.equal(isPattern('test', 'npm run test and then stop', 'npm run test'.length), false);
+
+// 4. A file introduced as a generated artifact is absent from a clean checkout
+// on purpose, and "is not there any more" reads as rot where there is none.
+const generated = 'Some generated artifacts (such as `src/types.ts`) can become stale.';
+assert.equal(describedAsGenerated(generated, 'src/types.ts'), true);
+assert.equal(describedAsGenerated('Edit `src/types.ts` before you start.', 'src/types.ts'), false);
+
+console.log('docsreality: 30 assertions passed');
