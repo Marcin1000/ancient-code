@@ -13,7 +13,7 @@
     "test": "node test/ownership.test.mjs && node test/safety.test.mjs && node test/buildability.test.mjs && node test/buildrun.test.mjs && node test/docsreality.test.mjs"
   },
   "dependencies": {
-    "ancient-fences": "^0.3.0"
+    "ancient-fences": "^0.3.1"
   },
   "license": "MIT",
   "author": "Marcin Przybylski",
