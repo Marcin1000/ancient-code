@@ -100,5 +100,5 @@ console.log('safety: 12 assertions passed');
   assert.equal(isNoise('node_modules\\x\\y.js'), true);
   assert.equal(isNoise('payments\\a.js'), false);
 
-  console.log('safety: 8 more assertions passed (sciezki Windows)');
+  console.log('safety: 8 more assertions passed (Windows paths)');
 }

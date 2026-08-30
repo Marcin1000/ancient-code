@@ -4,7 +4,7 @@ import { promisify } from 'node:util';
 import { mkdtemp, writeFile, rm } from 'node:fs/promises';
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
-import { runBuild } from '../src/buildrun.mjs';
+import { runBuild, spawnFor } from '../src/buildrun.mjs';
 
 const run = promisify(execFile);
 
@@ -58,5 +58,15 @@ r = await runBuild(dir, { timeoutMs: 60000 });
 assert.equal(r.ok, false);
 assert.equal(r.steps.find((s) => !s.ok).step, 'npm run build');
 
+// Windows spawns npm as a batch file. Getting this wrong made the build step
+// fail on every Windows machine, and the report then said the project does not
+// build: a false accusation caused by our own code.
+assert.deepEqual(spawnFor('npm', 'win32'), { command: 'npm.cmd', shell: true });
+assert.deepEqual(spawnFor('npm', 'linux'), { command: 'npm', shell: false });
+assert.deepEqual(spawnFor('npm', 'darwin'), { command: 'npm', shell: false });
+// git ships as a real executable, so it must not gain a shell it does not need.
+assert.deepEqual(spawnFor('git', 'win32'), { command: 'git', shell: false });
+assert.deepEqual(spawnFor('node.exe', 'win32'), { command: 'node.exe', shell: false });
+
 for (const d of dirs) await rm(d, { recursive: true, force: true });
-console.log('buildrun: 6 assertions passed');
+console.log('buildrun: 11 assertions passed');

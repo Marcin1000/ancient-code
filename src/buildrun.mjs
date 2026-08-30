@@ -72,9 +72,26 @@ export async function runBuild(repo, { timeoutMs = 15 * 60 * 1000, keep = false 
   return finish(work, steps, keep);
 }
 
+/**
+ * npm on Windows is a batch file, not an executable, and Node refuses to spawn
+ * one without a shell. Without this the build step failed on every Windows
+ * machine with a spawn error, which the report then presented as "this project
+ * does not build": a false accusation about somebody's code, caused by ours.
+ *
+ * Only the interpreter changes. Arguments stay a fixed list, and the directory
+ * travels as cwd rather than as text in a command line, so nothing from the
+ * repository reaches a shell.
+ */
+export function spawnFor(cmd, platform = process.platform) {
+  const windows = platform === 'win32';
+  const shellNeeded = windows && !/\.(exe|com)$/i.test(cmd) && cmd !== 'git';
+  return { command: shellNeeded ? `${cmd}.cmd` : cmd, shell: shellNeeded };
+}
+
 async function tryRun(cmd, args, cwd, timeout) {
+  const { command, shell } = spawnFor(cmd);
   try {
-    const { stdout, stderr } = await run(cmd, args, { cwd, timeout, maxBuffer: 64 * 1024 * 1024 });
+    const { stdout, stderr } = await run(command, args, { cwd, timeout, shell, maxBuffer: 64 * 1024 * 1024 });
     return { ok: true, note: short(stderr || stdout, 'completed') };
   } catch (err) {
     return { ok: false, note: short(err.stderr || err.message) };

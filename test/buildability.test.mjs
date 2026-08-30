@@ -118,5 +118,5 @@ console.log('buildability: 14 assertions passed');
   assert.equal(b.findings.some((f) => f.kind === 'undocumented'), false,
     'Readme.md counts, and so would README.MD');
   await rm(dir, { recursive: true, force: true });
-  console.log('buildability: 1 more assertion passed (wielkosc liter w nazwie pliku)');
+  console.log('buildability: 1 more assertion passed (filename case)');
 }
