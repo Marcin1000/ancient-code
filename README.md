@@ -86,6 +86,29 @@ Node 20 or newer, and `git` on the PATH with the repository's full history. In a
 shallow clone git dates every line to the day it was fetched, so ages cannot be
 measured, and the report says that rather than printing a confident zero.
 
+## Using it from your own code
+
+Each question is a function, and they can be called separately. The command
+line runs exactly these, so nothing here is a second implementation that can
+drift from what the report says.
+
+```js
+import { ownership, safetyNet, assess, renderText } from 'ancient-code';
+
+const repo = '/path/to/repo';
+const own = await ownership(repo, { sinceYears: 3 });
+const safety = await safetyNet(repo);
+
+const a = assess({ own, safety });
+console.log(a.ownershipVerdict);          // { level: 'risk', why: '...' }
+console.log(a.buildVerdict.level);        // 'unmeasured': it was not passed in
+console.log(renderText('my-repo', a, own));
+```
+
+Whatever is not passed to `assess` comes back as `unmeasured`, never as a pass.
+The same happens when git cannot be read: an empty history is a failure to
+measure, not a codebase whose knowledge is well spread.
+
 ## Real reports
 
 Four public projects, measured with this tool and published in full:

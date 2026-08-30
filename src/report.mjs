@@ -17,17 +17,32 @@ export const CRITERIA = [
 
 const RANK = { risk: 0, watch: 1, ok: 2 };
 
-export function assess({ own, safety, fences, build, buildRun, docs }) {
-  const modules = (own.modules ?? []).map((row) => ({ ...row, risk: ownershipRisk(row) }));
+/**
+ * Nothing that was not measured may come back as a pass. The command line
+ * always supplies every input, but this is also the library entry point, and a
+ * caller who leaves one out has to see "not measured" rather than a green line
+ * they never earned. The same holds when git could not be read at all: an
+ * empty history is a failure to measure, not a codebase with shared knowledge.
+ */
+const unmeasured = (why) => ({ level: 'unmeasured', why });
+
+export function assess({ own, safety, fences, build, buildRun, docs } = {}) {
+  const modules = (own?.modules ?? []).map((row) => ({ ...row, risk: ownershipRisk(row) }));
   const atRisk = modules
     .filter((m) => m.risk.level !== 'ok')
     .sort((a, b) => RANK[a.risk.level] - RANK[b.risk.level] || b.changes - a.changes);
 
-  const ownershipVerdict = atRisk.some((m) => m.risk.level === 'risk')
-    ? { level: 'risk', why: `${atRisk.filter((m) => m.risk.level === 'risk').length} of ${modules.length} modules depend on one person` }
-    : atRisk.length > 0
-      ? { level: 'watch', why: `${atRisk.length} of ${modules.length} modules are close to a single owner` }
-      : { level: 'ok', why: `knowledge is shared across all ${modules.length} modules` };
+  const ownershipVerdict = !own
+    ? unmeasured('ownership was not measured in this run')
+    : own.error
+      ? unmeasured(own.error)
+      : modules.length === 0
+        ? unmeasured('no commits in the window measured, so ownership says nothing')
+        : atRisk.some((m) => m.risk.level === 'risk')
+          ? { level: 'risk', why: `${atRisk.filter((m) => m.risk.level === 'risk').length} of ${modules.length} modules depend on one person` }
+          : atRisk.length > 0
+            ? { level: 'watch', why: `${atRisk.length} of ${modules.length} modules are close to a single owner` }
+            : { level: 'ok', why: `knowledge is shared across all ${modules.length} modules` };
 
   // Findings in tests are counted apart: a comment in a test linking to an
   // issue is usually the regression test for that bug, and a closed issue
@@ -39,17 +54,25 @@ export function assess({ own, safety, fences, build, buildRun, docs }) {
           + `${fences.summary.inTests ? `, ${fences.summary.inTests} in tests (kept, not work)` : ''}`
           + `, ${fences.summary.old} untouched for 3+ years, ${fences.summary.trackers} external issues to check`,
       }
-    : { level: 'unmeasured', why: 'skipped with --no-fences' };
+    : unmeasured('the scaffolding scan did not run in this pass');
 
   // A build that was actually run beats any amount of inference about one.
-  const buildVerdict = buildRun
+  const buildVerdict = buildRun && build
     ? { level: buildRun.verdict.level, why: `${buildRun.verdict.why}; ${build.verdict.why}` }
-    : build.verdict;
+    : buildRun
+      ? buildRun.verdict
+      : build
+        ? build.verdict
+        : unmeasured('buildability was not measured in this run');
 
-  return { modules, atRisk, ownershipVerdict, scaffolding, safety, build, buildRun, buildVerdict, docs };
+  const safetyOut = safety ?? { verdict: unmeasured('the safety net was not measured in this run'), totalSource: null, totalTests: null, ci: { present: false, files: [] } };
+  const docsOut = docs ?? { verdict: unmeasured('documentation was not measured in this run'), findings: [] };
+  const buildOut = build ?? { verdict: buildVerdict, findings: [] };
+
+  return { modules, atRisk, ownershipVerdict, scaffolding, safety: safetyOut, build: buildOut, buildRun, buildVerdict, docs: docsOut };
 }
 
-export function renderText(repoName, a, own) {
+export function renderText(repoName, a, own = {}) {
   const L = [];
   const mark = (level) => ({ ok: '  ok  ', watch: ' watch', risk: ' RISK ', unmeasured: '  --  ' }[level] ?? '  ?   ');
   L.push('');
@@ -76,7 +99,7 @@ export function renderText(repoName, a, own) {
     L.push(`            not measured in this run`);
   }
   L.push('');
-  L.push(`  KNOWLEDGE CONCENTRATED IN ONE PERSON  (last ${own.sinceYears} years)`);
+  L.push(`  KNOWLEDGE CONCENTRATED IN ONE PERSON  (last ${own.sinceYears ?? '?'} years)`);
   L.push('  ' + '-'.repeat(72));
   if (a.atRisk.length === 0) {
     L.push('  Nothing stands out. Every module has been touched by several people.');
@@ -88,7 +111,8 @@ export function renderText(repoName, a, own) {
     L.push('');
   }
   L.push('  ' + '-'.repeat(72));
-  L.push(`  Source files: ${a.safety.totalSource}   test files: ${a.safety.totalTests}   CI: ${a.safety.ci.present ? a.safety.ci.files.join(', ') : 'none'}`);
+  const counted = (n) => (n === null || n === undefined ? 'not measured' : n);
+  L.push(`  Source files: ${counted(a.safety.totalSource)}   test files: ${counted(a.safety.totalTests)}   CI: ${a.safety.ci.present ? a.safety.ci.files.join(', ') : 'none'}`);
   L.push('');
   L.push('  Measured from the repository only. Nothing here is an opinion about');
   L.push('  anyone. One of the six questions still needs a person: who holds the keys.');

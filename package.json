@@ -3,6 +3,11 @@
   "version": "0.1.1",
   "description": "What it would cost to hand a codebase to someone else: six questions, five of them measured.",
   "type": "module",
+  "main": "src/index.mjs",
+  "exports": {
+    ".": "./src/index.mjs",
+    "./src/*": "./src/*"
+  },
   "bin": {
     "ancient-code": "bin/ancient-code.mjs"
   },
@@ -10,7 +15,7 @@
     "node": ">=20"
   },
   "scripts": {
-    "test": "node test/ownership.test.mjs && node test/safety.test.mjs && node test/buildability.test.mjs && node test/buildrun.test.mjs && node test/docsreality.test.mjs"
+    "test": "node test/ownership.test.mjs && node test/safety.test.mjs && node test/buildability.test.mjs && node test/buildrun.test.mjs && node test/docsreality.test.mjs && node test/report.test.mjs"
   },
   "dependencies": {
     "ancient-fences": "^0.3.1"
