@@ -1,6 +1,6 @@
 {
   "name": "ancient-code",
-  "version": "0.2.0",
+  "version": "0.3.0",
   "description": "What it would cost to hand a codebase to someone else: six questions, five of them measured.",
   "type": "module",
   "main": "src/index.mjs",
@@ -15,7 +15,7 @@
     "node": ">=20"
   },
   "scripts": {
-    "test": "node test/ownership.test.mjs && node test/safety.test.mjs && node test/buildability.test.mjs && node test/buildrun.test.mjs && node test/docsreality.test.mjs && node test/report.test.mjs && node test/cli.test.mjs"
+    "test": "node test/ownership.test.mjs && node test/safety.test.mjs && node test/buildability.test.mjs && node test/buildrun.test.mjs && node test/docsreality.test.mjs && node test/report.test.mjs && node test/name.test.mjs && node test/cli.test.mjs"
   },
   "dependencies": {
     "ancient-fences": "^0.3.1"

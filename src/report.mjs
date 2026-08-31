@@ -131,11 +131,11 @@ export function renderHtml(repoName, a, own) {
 
   const risky = a.atRisk.slice(0, 12).map((m) => `
     <tr>
-      <td><code>${esc(m.module)}</code></td>
-      <td class="num">${m.changes}</td>
-      <td class="num">${m.authors}</td>
-      <td><span class="state s-${m.risk.level}">${m.risk.level}</span><p>${esc(m.risk.why)}</p></td>
-      <td class="num">${esc(m.topAuthorLastSeen ?? 'unknown')}</td>
+      <td data-label="Module"><code>${esc(m.module)}</code></td>
+      <td data-label="Changes" class="num">${m.changes}</td>
+      <td data-label="People" class="num">${m.authors}</td>
+      <td data-label="Reading"><span class="state s-${m.risk.level}">${m.risk.level}</span><p>${esc(m.risk.why)}</p></td>
+      <td data-label="Busiest person last seen" class="num">${esc(m.topAuthorLastSeen ?? 'unknown')}</td>
     </tr>`).join('');
 
   return `<!doctype html>
@@ -143,8 +143,8 @@ export function renderHtml(repoName, a, own) {
 <meta name="viewport" content="width=device-width,initial-scale=1">
 <title>Ancient Code: ${esc(repoName)}</title>
 <style>
-:root{--ground:#0F1216;--surface:#171C22;--surface2:#1E242B;--line:#2B333B;--ink:#E7E1D4;--dim:#A7A69C;--muted:#83877F;--gold:#E0A45C;--inst:#8FC3D2;--risk:#C2603F}
-@media (prefers-color-scheme:light){:root{--ground:#E3E2DC;--surface:#EDEBE4;--surface2:#F3F1EB;--line:#CFCCC1;--ink:#1A1E22;--dim:#4A4F53;--muted:#6B6F68;--gold:#8B5514;--inst:#2A6274;--risk:#993A1E}}
+:root{--ground:#0F1216;--surface:#171C22;--surface2:#1E242B;--line:#2B333B;--ink:#E7E1D4;--dim:#A7A69C;--muted:#878B83;--gold:#E0A45C;--inst:#8FC3D2;--risk:#D16F4E}
+@media (prefers-color-scheme:light){:root{--ground:#E3E2DC;--surface:#EDEBE4;--surface2:#F3F1EB;--line:#CFCCC1;--ink:#1A1E22;--dim:#4A4F53;--muted:#62665F;--gold:#8B5514;--inst:#2A6274;--risk:#993A1E}}
 *{box-sizing:border-box}
 body{margin:0;background:var(--ground);color:var(--ink);font:16px/1.6 ui-sans-serif,system-ui,-apple-system,"Segoe UI",Roboto,sans-serif;-webkit-font-smoothing:antialiased}
 .wrap{max-width:66rem;margin:0 auto;padding:0 clamp(1rem,4vw,2.5rem)}
@@ -163,19 +163,47 @@ h1{font:300 clamp(2rem,5vw,3.2rem)/1.05 ui-serif,Georgia,serif;letter-spacing:-.
 .s-watch{color:var(--gold)}
 .s-unmeasured{color:var(--muted)}
 h2{font:300 1.6rem/1.1 ui-serif,Georgia,serif;margin:2.5rem 0 1rem}
-.scroll{overflow-x:auto;border:1px solid var(--line);background:var(--surface)}
-table{border-collapse:collapse;width:100%;min-width:44rem;font-size:.88rem}
+.brand{display:flex;align-items:center;gap:.6rem;color:var(--ink);margin-bottom:1.4rem}
+.brand span{font:300 1.2rem/1 ui-serif,Georgia,serif;transform:translateY(.09em)}
+.brand b{color:var(--gold);font-weight:300}
+.scroll{border:1px solid var(--line);background:var(--surface)}
+table{border-collapse:collapse;width:100%;font-size:.88rem}
 th,td{text-align:left;padding:.75rem 1rem;border-bottom:1px solid var(--line);vertical-align:top}
 thead th{font-family:ui-monospace,monospace;font-size:.62rem;letter-spacing:.12em;text-transform:uppercase;color:var(--muted);font-weight:400;background:var(--surface2);white-space:nowrap}
 td p{margin:.3rem 0 0;color:var(--dim);font-size:.8rem}
 td.num{font-variant-numeric:tabular-nums;color:var(--dim);white-space:nowrap;font-size:.82rem}
 footer{border-top:1px solid var(--line);margin-top:3rem;padding:2rem 0 4rem;color:var(--muted);font-size:.85rem}
 footer p{max-width:62ch}
+/* Five columns of module paths never fit on a phone. Forced side by side, one
+   column collapses to nothing and its text prints a letter per line. Below this
+   width every row becomes a small block with its label in front. */
+@media (max-width:640px){
+  table,tbody{display:block;width:100%}
+  thead{position:absolute;width:1px;height:1px;overflow:hidden;clip:rect(0 0 0 0);white-space:nowrap}
+  tr{display:flex;flex-wrap:wrap;border-bottom:1px solid var(--line);padding:.55rem .2rem}
+  tr:last-child{border-bottom:0}
+  td{display:block;flex:1 1 100%;min-width:0;border-bottom:0;padding:.3rem 1rem;overflow-wrap:anywhere}
+  td.num{flex:0 0 auto;min-width:6.5rem;max-width:100%;white-space:normal}
+  td[data-label]::before{display:block;content:attr(data-label);font-family:ui-monospace,monospace;font-size:.6rem;letter-spacing:.12em;text-transform:uppercase;color:var(--muted);margin-bottom:.15rem}
+  /* The verdict badge sits next to a question that wraps to three lines, so it
+     reads better above the answer than centred against it. */
+  .row{grid-template-columns:1fr;gap:.35rem}
+  .row .state{white-space:normal;order:-1}
+}
 </style></head><body>
 <header><div class="wrap">
-  <p class="mono">Ancient Code / transferability, partial run / ${esc(new Date().toISOString().slice(0, 10))}</p>
+  <div class="brand">
+    <svg viewBox="0 0 24 24" width="26" height="26" aria-hidden="true">
+      <rect x="2.6" y="3.2" width="18.8" height="2.4" fill="currentColor"/>
+      <rect x="5.6" y="7.4" width="2.4" height="13.4" fill="currentColor"/>
+      <rect x="10.8" y="7.4" width="2.4" height="13.4" fill="currentColor"/>
+      <rect x="16" y="7.4" width="2.4" height="13.4" fill="currentColor"/>
+      <rect x="3.4" y="12.6" width="17.2" height="1.8" fill="var(--gold)"/>
+    </svg><span>Ancient <b>Code</b></span>
+  </div>
+  <p class="mono">Transferability, partial run &middot; ${esc(new Date().toISOString().slice(0, 10))}</p>
   <h1>${esc(repoName)}</h1>
-  <p class="sub">Measured from the repository. Three of the six questions still need a person.</p>
+  <p class="sub">Five of the six questions are measured from the repository itself. The sixth needs a person, and it is marked as such rather than guessed at.</p>
 </div></header>
 <main class="wrap">
   <div class="panel">

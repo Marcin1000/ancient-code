@@ -1,5 +1,5 @@
 #!/usr/bin/env node
-import { resolve, basename } from 'node:path';
+import { resolve } from 'node:path';
 import { readFile, writeFile } from 'node:fs/promises';
 import { ownership } from '../src/ownership.mjs';
 import { safetyNet } from '../src/safety.mjs';
@@ -8,6 +8,7 @@ import { runBuild } from '../src/buildrun.mjs';
 import { docsReality } from '../src/docsreality.mjs';
 import { assess, renderText, renderHtml } from '../src/report.mjs';
 import { scanFences } from '../src/fences.mjs';
+import { projectName } from '../src/name.mjs';
 
 const args = process.argv.slice(2);
 const flags = args.filter((a) => a.startsWith('--'));
@@ -96,7 +97,9 @@ if (fencesFile) {
 }
 
 const a = assess({ own, safety, fences, build, buildRun, docs });
-const name = basename(root);
+// The folder is the last resort, not the first: a full clone of webpack in a
+// directory called webpackfull produced a report titled "webpackfull".
+const name = await projectName(root);
 
 const reportFlag = flags.find((f) => f === '--report' || f.startsWith('--report='));
 if (reportFlag) {

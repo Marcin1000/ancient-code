@@ -10,3 +10,4 @@ export { docsReality } from './docsreality.mjs';
 export { scanFences } from './fences.mjs';
 export { runBuild } from './buildrun.mjs';
 export { assess, renderText, renderHtml, CRITERIA } from './report.mjs';
+export { projectName } from './name.mjs';
