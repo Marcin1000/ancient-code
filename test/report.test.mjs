@@ -1,5 +1,5 @@
 import assert from 'node:assert/strict';
-import { assess, renderText } from '../src/report.mjs';
+import { assess, renderText, stats } from '../src/report.mjs';
 
 // The one promise this whole tool makes: what was not measured is never
 // reported as a pass. The command line always fills every input, but this is
@@ -49,4 +49,23 @@ assert.match(text, /not measured/);
 assert.ok(!/null/.test(text), 'no raw nulls in the report');
 assert.match(text, /Source files: not measured/);
 
-console.log('report: 17 assertions passed');
+
+// The headline numbers must keep "not asked" and "asked, found none" apart. A
+// zero where the run never looked is the same lie as a green verdict for
+// something that was never measured.
+const none = stats(assess({}));
+assert.deepEqual(none.map((x) => x.value), ['-', '-', '-', '-', '-', '-'],
+  'a run that measured nothing shows dashes, never zeros');
+
+const counted = stats(assess({
+  own: { sinceYears: 3, modules: [{ module: 'src', changes: 4, authors: 1, topAuthor: 'A', topAuthorShare: 1, busFactor: 1, topAuthorLastSeen: '2026-01-01', lastTouched: '2026-01-01' }] },
+  fences: { summary: { inSource: 0, inTests: 2, old: 0, total: 2, byKind: {}, trackers: 0, oldest: null } },
+  docs: { verdict: { level: 'ok', why: 'fine' }, findings: [] },
+}), { sinceYears: 3 });
+assert.equal(counted[2].value, 0, 'a scan that found nothing shows zero, not a dash');
+assert.equal(counted[3].value, 0);
+assert.equal(counted[4].value, 0, 'documentation was measured and had no gaps');
+assert.equal(counted[5].value, 3);
+assert.equal(counted[1].value, 1, 'one module carried by one person');
+
+console.log('report: 25 assertions passed');

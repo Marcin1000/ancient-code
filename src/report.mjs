@@ -69,7 +69,7 @@ export function assess({ own, safety, fences, build, buildRun, docs } = {}) {
   const docsOut = docs ?? { verdict: unmeasured('documentation was not measured in this run'), findings: [] };
   const buildOut = build ?? { verdict: buildVerdict, findings: [] };
 
-  return { modules, atRisk, ownershipVerdict, scaffolding, safety: safetyOut, build: buildOut, buildRun, buildVerdict, docs: docsOut };
+  return { modules, atRisk, ownershipVerdict, scaffolding, safety: safetyOut, build: buildOut, buildRun, buildVerdict, docs: docsOut, fences: fences ?? null };
 }
 
 export function renderText(repoName, a, own = {}) {
@@ -122,6 +122,28 @@ export function renderText(repoName, a, own = {}) {
 
 const esc = (s) => String(s).replace(/[&<>"]/g, (c) => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;' }[c]));
 
+/**
+ * The headline numbers behind the verdicts. A dash means the question was not
+ * asked in this run; a zero means it was asked and the answer was none. Those
+ * are different findings and the report has to keep them apart.
+ */
+export function stats(a, own = {}) {
+  const f = a.fences?.summary;
+  const unanswered = (a.docs?.findings ?? []).filter((x) => x.kind === 'unanswered question').length;
+  // An empty module list is what both "no history was read" and "a repository
+  // with nothing in it" produce, so the verdict decides which of the two it is.
+  const readHistory = a.ownershipVerdict?.level && a.ownershipVerdict.level !== 'unmeasured';
+  const risky = a.atRisk?.filter((m) => m.risk.level === 'risk').length ?? 0;
+  return [
+    { value: readHistory ? a.modules.length : '-', label: 'modules read' },
+    { value: readHistory ? risky : '-', label: 'where one person holds the knowledge' },
+    { value: f ? f.inSource : '-', label: 'fences in source' },
+    { value: f ? f.old : '-', label: 'untouched for 3+ years' },
+    { value: a.docs?.verdict?.level === 'unmeasured' ? '-' : unanswered, label: 'day-one questions unanswered' },
+    { value: own.sinceYears ?? '-', label: 'years of history read' },
+  ];
+}
+
 export function renderHtml(repoName, a, own) {
   const row = (level, title, why) => `
     <div class="row">
@@ -153,6 +175,10 @@ h1{font:300 clamp(2rem,5vw,3.2rem)/1.05 ui-serif,Georgia,serif;letter-spacing:-.
 .mono,code,.num{font-family:ui-monospace,SFMono-Regular,Menlo,monospace}
 .mono{font-size:.7rem;letter-spacing:.14em;text-transform:uppercase;color:var(--muted);margin:0}
 .sub{color:var(--dim);margin:.7rem 0 0}
+.stats{display:grid;grid-template-columns:repeat(auto-fit,minmax(9rem,1fr));gap:1px;background:var(--line);border:1px solid var(--line);margin:2.5rem 0 0}
+.stat{background:var(--surface);padding:1.1rem 1.2rem;display:flex;flex-direction:column;gap:.3rem}
+.stat b{font:400 2rem/1 ui-monospace,monospace;color:var(--gold);font-variant-numeric:tabular-nums}
+.stat span{font-size:.78rem;color:var(--dim);line-height:1.35}
 .panel{border:1px solid var(--line);background:var(--surface);margin:2.5rem 0}
 .row{display:grid;grid-template-columns:1fr auto;gap:1rem;padding:1rem 1.3rem;border-bottom:1px solid var(--line);align-items:center}
 .row:last-child{border-bottom:0}
@@ -206,6 +232,9 @@ footer p{max-width:62ch}
   <p class="sub">Five of the six questions are measured from the repository itself. The sixth needs a person, and it is marked as such rather than guessed at.</p>
 </div></header>
 <main class="wrap">
+  <div class="stats">${stats(a, own).map((x) => `
+    <div class="stat"><b>${esc(x.value)}</b><span>${esc(x.label)}</span></div>`).join('')}
+  </div>
   <div class="panel">
     ${row(a.ownershipVerdict.level, 'How many people understand each part?', a.ownershipVerdict.why)}
     ${row(a.safety.verdict.level, 'Is there a safety net for changes?', a.safety.verdict.why)}
